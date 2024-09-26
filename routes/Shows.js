@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const { Show, User } = require("../models/.");
+const { Show } = require("../models/.");
+const { body, matchedData, validationResult } = require("express-validator");
 
-// GET -  one show OR shows of a particular genre (genre in req.query)
+// GET -  all shows OR shows of a particular genre (genre in req.query)
 router.get("/", async (req, res, next) => {
   try {
     const { genre } = req.query;
@@ -88,5 +89,43 @@ router.delete("/:id", async (req, res, next) => {
     next(error);
   }
 });
+
+// BONUS - Server Side Validation
+
+// POST - title of a show must be a max of 25 characters
+router.post(
+  "/",
+  [
+    body("title")
+      .trim()
+      .notEmpty()
+      .isLength({ max: 25 })
+      .withMessage("Title can only have a maximum of 25 characters"),
+    body("genre").isString(),
+    body("available").isBoolean(),
+  ],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+      } else {
+        const data = matchedData(req);
+        const newShow = await Show.create({
+          title: data.title,
+          genre: data.genre,
+          available: data.available,
+        });
+
+        res
+          .status(201)
+          .json({ message: "New show created successfully", data: newShow });
+      }
+    } catch (error) {
+      console.error(`Error : ${error.message}`);
+      next(error);
+    }
+  }
+);
 
 module.exports = router;

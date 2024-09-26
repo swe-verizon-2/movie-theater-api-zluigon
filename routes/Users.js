@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { User, Show } = require("../models/.");
+const { body, matchedData, validationResult } = require("express-validator");
 
 // GET - all users
 router.get("/", async (req, res, next) => {
@@ -66,5 +67,37 @@ router.put("/:id/shows/:showId", async (req, res, next) => {
     next(error);
   }
 });
+
+// BONUS - Server Side Validation
+
+// POST - username must be an email address
+router.post(
+  "/",
+  [
+    body("username").trim().notEmpty().isEmail().withMessage("Username must be a valid email address"),
+    // utilizing .isLength instead of .isStrongPassword for endpoint testing
+    body("password").trim().notEmpty().isLength({ min: 5 }),
+    // body("password").trim().notEmpty().isStrongPassword({ min: 8 }),
+  ],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+      } else {
+        const data = matchedData(req);
+        const newUser = await User.create({
+          username: data.username,
+          password: data.password,
+        });
+
+        res.status(201).json({ message: "New user created successfully" });
+      }
+    } catch (error) {
+      console.error(`Error: ${error.message}`);
+      next(error);
+    }
+  }
+);
 
 module.exports = router;
