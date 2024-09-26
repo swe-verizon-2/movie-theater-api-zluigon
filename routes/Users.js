@@ -1,8 +1,9 @@
 const express = require("express");
-const route = express.Router();
+const router = express.Router();
 const { User, Show } = require("../models/.");
 
-route.get("/", async (req, res, next) => {
+// GET - all users
+router.get("/", async (req, res, next) => {
   try {
     const allUsers = await User.findAll();
     res.json(allUsers);
@@ -12,11 +13,14 @@ route.get("/", async (req, res, next) => {
   }
 });
 
-route.get("/:id", async (req, res, next) => {
+// GET - one user
+router.get("/:id", async (req, res, next) => {
   try {
     const foundUser = await User.findByPk();
     if (!foundUser) {
-      throw new Error("User does not exist");
+      res.status(404).json({
+        error: `User with ID ${req.params.id} not found`,
+      });
     } else {
       res.json(foundUser);
     }
@@ -26,26 +30,17 @@ route.get("/:id", async (req, res, next) => {
   }
 });
 
-route.get("/:id/shows", async (req, res, next) => {
+// GET - all shows watched by a user (user id in req.params)
+router.get("/:id/shows", async (req, res, next) => {
   try {
     const user = await User.findByPk(req.params.id);
-    const userShows = await user.getShows();
-    res.json(userShows);
-  } catch (error) {
-    console.error(`Error: ${error.message}`);
-    next(error);
-  }
-});
-
-route.put("/:id/shows/:showId", async (req, res, next) => {
-  try {
-    const user = await User.findByPk(req.params.id);
-    const show = await Show.findByPk(req.params.showId);
-    if (!user || !show) {
-      res.sendStatus(404);
+    if (!user) {
+      res.status(404).json({
+        error: `User with ID ${req.params.id} not found`,
+      });
     } else {
-      await user.addShow(show);
-      res.sendStatus(200);
+      const userShows = await user.getShows();
+      res.json(userShows);
     }
   } catch (error) {
     console.error(`Error: ${error.message}`);
@@ -53,4 +48,23 @@ route.put("/:id/shows/:showId", async (req, res, next) => {
   }
 });
 
-module.exports = route;
+// PUT - associate a user with a show they have watched
+router.put("/:id/shows/:showId", async (req, res, next) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    const show = await Show.findByPk(req.params.showId);
+    if (!user || !show) {
+      res.status(404).json({
+        error: `User with ID ${req.params.id} or Show with ID ${req.params.showId} not found`,
+      });
+    } else {
+      await user.addShow(show);
+      res.status(204).send();
+    }
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
+    next(error);
+  }
+});
+
+module.exports = router;
